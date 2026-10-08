@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ASGate - الفرص البيعية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="./opportunities.css">
+<style>
+html,body{overflow-x:hidden; width:100%; max-width:100vw; margin:0; padding:0;}
+#navbarPlaceholder{height:52px; min-height:52px; max-height:52px; width:100%; max-width:100vw; overflow:hidden; box-sizing:border-box; background:#fff; border-bottom:1px solid #e2e8f0;}
+.dashboard-container{display:flex; flex-direction:column; height:100vh; width:100%; max-width:100vw; overflow:hidden; box-sizing:border-box;}
+tbody tr.main-row:hover td{background:#f0fdf4 !important;}
+body.dark-mode tbody tr.main-row:hover td{background:#334155 !important;}
+</style>
+</head>
+<body>
+
+<div class="dashboard-container">
+<div id="navbarPlaceholder">
+<nav class="top-navbar" data-unified="true">
+<div style="display:flex; align-items:center; gap:12px; height:100%; min-width:0; flex:1;">
+<div class="nav-brand"><i class="fas fa-layer-group" style="color:#10b981;"></i> ASGate <span style="background:#10b981; color:#fff; font-size:8px; padding:1px 5px; border-radius:8px;">PRO</span></div>
+<ul class="nav-links">
+<li><a href="./index.html"><i class="fas fa-chart-pie"></i> الرئيسية</a></li>
+<li><a href="./visits.html"><i class="fas fa-route"></i> الزيارات</a></li>
+<li><a href="./opportunities.html" class="active"><i class="fas fa-bullseye"></i> الفرص</a></li>
+<li><a href="./customers.html"><i class="fas fa-building"></i> العملاء</a></li>
+<li><a href="./sales.html"><i class="fas fa-bag-shopping"></i> المبيعات</a></li>
+<li><a href="./reminders.html"><i class="fas fa-bell"></i> التذكيرات</a></li>
+</ul>
+</div>
+<div style="display:flex; align-items:center; gap:8px; height:100%; flex-shrink:0;">
+<div class="nav-search-container">
+<div class="nav-search-input-wrapper"><i class="fas fa-search search-icon"></i><input type="text" id="globalSearchInput" placeholder="بحث..."></div>
+<div id="searchResults" class="search-results-dropdown"></div>
+</div>
+<div class="nav-actions"><button class="nav-btn" id="darkModeToggle" title="الوضع الليلي"><i class="fas fa-moon"></i></button><div style="width:28px; height:28px; background:linear-gradient(135deg,#0a3a22,#10b981); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:11px;">H</div></div>
+</div>
+</nav>
+</div>
+
+<div class="main-content">
+<div class="action-bar">
+<div class="search-wrapper"><input type="text" id="searchInput" class="search-input" placeholder="بحث في الفرص 🔍" onkeyup="debouncedFilterTable()"></div>
+<div class="stats-bar-visit">
+<div class="stat-item">الكل: <span id="stat-total" class="stat-val">0</span></div>
+<div class="stat-item">هذا الشهر: <span id="stat-month" class="stat-val">0</span></div>
+<div class="stat-item">اليوم: <span id="stat-today" class="stat-val">0</span></div>
+<div class="stat-divider">|</div>
+<div class="stat-item">الإجمالي: <span id="stat-value-total" class="stat-val" style="color:#059669; background:#ecfdf5;">0</span></div>
+<div class="stat-item">الشهر: <span id="stat-value-month" class="stat-val" style="color:#059669; background:#ecfdf5;">0</span></div>
+</div>
+<div class="bulk-action-wrapper">
+<button class="btn-bulk-trigger" onclick="toggleDropdown(event, this)">إجراءات <i class="fas fa-chevron-down" style="font-size:9px;"></i></button>
+<div class="dropdown-menu">
+<button onclick="handleBulkAction('تغيير المستخدم')"><i class="fas fa-user-edit"></i> تغيير المستخدم</button>
+<button onclick="handleBulkAction('استيراد')"><i class="fas fa-file-import"></i> استيراد</button>
+<button onclick="handleBulkAction('تصدير')"><i class="fas fa-file-excel"></i> تصدير</button>
+<button onclick="handleBulkAction('طباعة')"><i class="fas fa-print"></i> طباعة</button>
+<hr style="border:none; border-top:1px solid #e2e8f0; margin:4px 0;">
+<button class="del-btn" onclick="handleBulkAction('حذف')"><i class="fas fa-trash-alt"></i> حذف</button>
+</div>
+<input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none">
+</div>
+</div>
+
+<div class="table-wrapper">
+<table id="mainTable">
+<thead>
+<tr>
+<th class="col-select"><input type="checkbox" onclick="toggleAllCheckboxes(this)"></th>
+<th class="col-company">الشركة</th>
+<th class="col-address">العنوان</th>
+<th class="col-manager">المسؤول</th>
+<th class="col-mobile">التواصل</th>
+<th class="col-email">الإيميل</th>
+<th class="col-record">السجل</th>
+<th class="col-date">تاريخ الفرصة</th>
+<th class="col-service">الخدمة</th>
+<th class="col-val">القيمة</th>
+<th class="col-notes">ملاحظات</th>
+<th class="col-status">
+<div class="custom-filter-wrapper">
+<div class="filter-title" onclick="toggleCustomFilter(event, 'statusFilterMenu')">الحالة <i class="fas fa-caret-down filter-arrow"></i><span class="filter-dot" id="statusFilterDot"></span></div>
+<div class="multi-select-menu" id="statusFilterMenu" onclick="event.stopPropagation()">
+<div style="display:flex; gap:4px; padding:2px 4px 6px; border-bottom:1px solid #f1f5f9; margin-bottom:4px;">
+<button type="button" onclick="selectAllFilter('statusFilterMenu')" style="flex:1; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; border-radius:4px; padding:3px; font-size:9px; font-weight:700; cursor:pointer; font-family:Cairo;">الكل</button>
+<button type="button" onclick="clearAllFilter('statusFilterMenu')" style="flex:1; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:4px; padding:3px; font-size:9px; font-weight:700; cursor:pointer; font-family:Cairo;">تفريغ</button>
+</div>
+<label class="multi-select-item"><input type="checkbox" value="مهتم" onchange="updateFilters()"> <span class="custom-cb"><i class="fas fa-check"></i></span> مهتم</label>
+<label class="multi-select-item"><input type="checkbox" value="رابح" onchange="updateFilters()"> <span class="custom-cb"><i class="fas fa-check"></i></span> رابح</label>
+<label class="multi-select-item"><input type="checkbox" value="فقدان" onchange="updateFilters()"> <span class="custom-cb"><i class="fas fa-check"></i></span> فقدان</label>
+</div>
+</div>
+</th>
+<th class="col-edit">المتوقع</th>
+<th class="col-owner">
+<div class="custom-filter-wrapper">
+<div class="filter-title" onclick="toggleCustomFilter(event, 'ownerFilterMenu')">المستخدم <i class="fas fa-caret-down filter-arrow"></i><span class="filter-dot" id="ownerFilterDot"></span></div>
+<div class="multi-select-menu" id="ownerFilterMenu" onclick="event.stopPropagation()">
+<div style="display:flex; gap:4px; padding:2px 4px 6px; border-bottom:1px solid #f1f5f9; margin-bottom:4px;">
+<button type="button" onclick="selectAllFilter('ownerFilterMenu')" style="flex:1; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; border-radius:4px; padding:3px; font-size:9px; font-weight:700; cursor:pointer;">الكل</button>
+<button type="button" onclick="clearAllFilter('ownerFilterMenu')" style="flex:1; background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:4px; padding:3px; font-size:9px; font-weight:700; cursor:pointer;">تفريغ</button>
+</div>
+<div id="ownerFilterItemsContainer" style="display:flex; flex-direction:column; gap:4px;"></div>
+</div>
+</div>
+</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<div id="activityLogSection" class="activity-log-section">
+<div class="activity-log-header-container">
+<div class="activity-log-title"><i class="fas fa-history"></i> سجل نشاط الفرص</div>
+<button id="toggleExpandBtn" class="btn-toggle-expand" onclick="toggleLogExpansion()" title="توسيع"><i class="fas fa-expand-alt"></i></button>
+</div>
+<div id="activityList" class="activity-list"></div>
+</div>
+</div>
+</div>
+
+<div id="noteModal" class="modal-notes">
+<div class="modal-notes-content">
+<div style="font-weight:800; color:#1e293b; font-size:13px; margin-bottom:12px; display:flex; align-items:center; gap:6px;"><i class="fas fa-sticky-note" style="color:#3b82f6"></i> سجل ملاحظات الفرصة</div>
+<div id="historyLog" class="history-log"></div>
+<textarea id="modalTextArea" class="note-area" placeholder="أدخل الملاحظة..."></textarea>
+<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+<button onclick="closeNote()" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:Cairo; font-size:11px; font-weight:700;">إلغاء</button>
+<button onclick="saveNote()" style="background:#3b82f6; border:none; color:#fff; padding:6px 14px; border-radius:6px; cursor:pointer; font-family:Cairo; font-size:11px; font-weight:800;">حفظ</button>
+</div>
+</div>
+</div>
+
+<div class="calendar-overlay" id="calendarOverlay">
+<div class="custom-datepicker">
+<div class="datepicker-header">
+<div class="datepicker-nav-row">
+<div class="nav-group"><i class="fas fa-chevron-left month-nav-btn" id="prevMonthBtn"></i><span class="datepicker-display" id="calMonthDisplay">January</span><i class="fas fa-chevron-right month-nav-btn" id="nextMonthBtn"></i></div>
+<div class="nav-group year-group"><i class="fas fa-chevron-left month-nav-btn" id="prevYearBtn"></i><span class="datepicker-display" id="calYearDisplay">2025</span><i class="fas fa-chevron-right month-nav-btn" id="nextYearBtn"></i></div>
+</div>
+</div>
+<div class="weekdays-grid"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span class="weekend-day">Fr</span><span class="weekend-day">Sa</span></div>
+<div class="days-container"><div class="days-grid" id="calDaysGrid"></div></div>
+<div class="datepicker-footer"><button class="btn-cancel" id="calCancelBtn">إلغاء</button><div class="action-buttons"><button class="btn-clear-date" id="calClearBtn">مسح</button><button class="btn-next" id="calNextBtn">تأكيد</button></div></div>
+</div>
+</div>
+
+<script type="module" src="./firebase-config.js"></script>
+<script type="module" src="./navbar.js"></script>
+<script type="module" src="./opportunities.js"></script>
+</body>
+</html>
